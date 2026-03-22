@@ -53,7 +53,17 @@ self.__hyperspeed$config = {
               ? this.ctx.meta.rewriteUrl(url)
               : url
             : url;
-          return new orig(rewritten, opts);
+          try {
+            return new orig(rewritten, opts);
+          } catch (e) {
+            // Cross-origin Worker URLs (e.g. reCAPTCHA) throw SecurityError.
+            // Return a no-op EventTarget so callers don't crash.
+            console.warn('[hyperspeed] Worker blocked (cross-origin):', url);
+            const stub = new EventTarget();
+            stub.postMessage = () => {};
+            stub.terminate = () => {};
+            return stub;
+          }
         }, true);
       };
     }

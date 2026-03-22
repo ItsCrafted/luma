@@ -3,35 +3,79 @@ importScripts('/hyperspeed.config.js');
 
 const WORKER_URL = 'https://lumatest.craftedgamz.workers.dev';
 
-// Replace BareClient with a direct fetch to our CF Worker
+// Replace BareClient with a direct fetch to our CF Worker.
 // hyperspeed.sw.js expects: { rawHeaders, status, statusText, body, finalURL, text() }
 class DirectBareClient {
   async fetch(url, options = {}) {
     const target = url instanceof URL ? url.href : String(url);
     const fetchURL = WORKER_URL + '?url=' + encodeURIComponent(target);
 
-    const res = await fetch(fetchURL, {
-      method: options.method || 'GET',
-      headers: options.headers || {},
-      body: options.body || null,
-      credentials: 'omit',
-    });
+    const method = (options.method || 'GET').toUpperCase();
 
+    // The SW passes body as a Blob (from await e.blob()).
+    // Force null for GET/HEAD regardless of what was passed.
+    let body = null;
+    if (!['GET', 'HEAD'].includes(method) && options.body != null) {
+      body = options.body;
+    }
+
+    let res;
+    try {
+      res = await fetch(fetchURL, {
+        method,
+        headers: options.headers || {},
+        body,
+        credentials: 'omit',
+        redirect: 'follow',
+      });
+    } catch (networkErr) {
+      // CF worker unreachable — return synthetic 502 so hyperspeed.sw.js
+      // doesn't throw and produce an unhandled 500.
+      console.warn('[DirectBareClient] network error:', networkErr.message);
+      const empty = new Uint8Array(0);
+      return {
+        status: 502,
+        statusText: 'Bad Gateway',
+        rawHeaders: { 'content-type': 'text/plain' },
+        finalURL: target,
+        body: empty,
+        text: () => Promise.resolve(''),
+      };
+    }
+
+    // Build rawHeaders object (hyperspeed.sw.js iterates with for...in)
     const rawHeaders = {};
     for (const [k, v] of res.headers.entries()) {
       rawHeaders[k] = v;
     }
 
-    // Buffer body so both .body (stream) and .text() work independently
-    const bodyBuf = await res.arrayBuffer();
+    // x-final-url is set by our CF worker to the real post-redirect URL.
+    // res.url here would be the CF worker's own URL, not the target's.
+    const finalURL = rawHeaders['x-final-url'] || target;
+
+    // Buffer the body once so both .body and .text() work independently.
+    let bodyBuf;
+    try {
+      bodyBuf = await res.arrayBuffer();
+    } catch (bodyErr) {
+      console.warn('[DirectBareClient] body read error:', bodyErr.message);
+      bodyBuf = new ArrayBuffer(0);
+    }
+
+    const bodyBytes = new Uint8Array(bodyBuf);
+    let cachedText = null;
+    const getText = () => {
+      if (cachedText === null) cachedText = new TextDecoder().decode(bodyBuf);
+      return Promise.resolve(cachedText);
+    };
 
     return {
       status: res.status,
-      statusText: res.statusText,
+      statusText: res.statusText || 'OK',
       rawHeaders,
-      finalURL: res.url || target,
-      body: new Uint8Array(bodyBuf),
-      text: () => Promise.resolve(new TextDecoder().decode(bodyBuf)),
+      finalURL,
+      body: bodyBytes,
+      text: getText,
     };
   }
 }
@@ -40,6 +84,21 @@ class DirectBareClient {
 self.Ultraviolet = self.Hyperspeed;
 self.Ultraviolet.BareClient = DirectBareClient;
 self.Hyperspeed.BareClient = DirectBareClient;
+
+// Suppress bare-mux BroadcastChannel errors in the SW context.
+// When worker-destination scripts are injected, the bundle initialises bare-mux
+// which creates a BroadcastChannel and may try to read localStorage — both can
+// throw or misbehave inside a SW. Wrap BroadcastChannel to swallow those errors.
+if (typeof BroadcastChannel !== 'undefined') {
+  const _OrigBC = BroadcastChannel;
+  self.BroadcastChannel = class SafeBroadcastChannel extends _OrigBC {
+    constructor(name) {
+      try { super(name); } catch(e) { /* ignore */ }
+    }
+    set onmessage(fn) { try { super.onmessage = fn; } catch(e) {} }
+    get onmessage() { try { return super.onmessage; } catch(e) { return null; } }
+  };
+}
 
 importScripts('/hyperspeed.sw.js');
 

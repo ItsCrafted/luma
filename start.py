@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-Proxy local server — serves files with correct MIME types for SW registration.
 Run: python start.py
-Then open: http://localhost:8080
+Open: http://localhost:8080
 """
 import http.server, socketserver, os, sys
 
@@ -20,8 +19,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print(f'  {args[0]} {args[1]}')
 
-print(f'Proxy server running at http://localhost:{PORT}')
-print('Open that URL in your browser.')
+print(f'\nProxy running at http://localhost:{PORT}')
 print('Press Ctrl+C to stop.\n')
 with socketserver.TCPServer(('', PORT), Handler) as httpd:
     httpd.serve_forever()

@@ -15,22 +15,18 @@
   }
   html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
   .shell { display: grid; grid-template-rows: auto 1fr; height: 100%; }
-  header { border-bottom: 1px solid var(--border); padding: 0 16px; display: flex; align-items: stretch; background: var(--surface); gap: 0; }
+  header { border-bottom: 1px solid var(--border); padding: 0 16px; display: flex; align-items: stretch; background: var(--surface); }
   .brand { display: flex; align-items: center; gap: 10px; padding: 12px 16px 12px 0; border-right: 1px solid var(--border); margin-right: 12px; flex-shrink: 0; }
   .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
   .brand-name { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--accent); letter-spacing: .08em; }
-  .bar { flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px 0; min-width: 0; }
-  .url-input-wrap { flex: 1; min-width: 0; }
-  input[type=text] { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 7px 10px; outline: none; transition: border-color .15s; }
-  input[type=text]:focus { border-color: var(--accent); }
+  .bar { flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+  .url-wrap { flex: 1; }
+  .url-wrap input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 7px 10px; outline: none; transition: border-color .15s; }
+  .url-wrap input:focus { border-color: var(--accent); }
   input::placeholder { color: var(--muted); }
   .go-btn { background: var(--accent); color: #000; border: none; border-radius: var(--radius); font-family: var(--mono); font-size: 12px; font-weight: 500; padding: 7px 16px; cursor: pointer; flex-shrink: 0; transition: opacity .15s; }
   .go-btn:hover { opacity: .85; }
   .go-btn:disabled { opacity: .4; cursor: not-allowed; }
-  .sep { width: 1px; background: var(--border); margin: 8px 0; flex-shrink: 0; }
-  .field { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-  .field label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
-  .field input { width: 210px; }
   .status-pill { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
   .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); transition: background .3s; }
   .status-dot.ok { background: var(--accent); }
@@ -61,11 +57,10 @@
       <span class="brand-name">PROXY</span>
     </div>
     <div class="bar">
-      <div class="url-input-wrap">
+      <div class="url-wrap">
         <input type="text" id="url-input" placeholder="https://example.com" />
       </div>
       <button class="go-btn" id="go-btn" disabled>GO</button>
-<input type="hidden" id="bare-input" value="wss://lumatest.craftedgamz.workers.dev" />
       <div class="status-pill">
         <div class="status-dot spin" id="status-dot"></div>
         <span id="status-text">init</span>
@@ -76,24 +71,26 @@
     <div class="landing">
       <div class="landing-text">
         <h2>web proxy</h2>
-        <p>Deploy <code>worker.js</code> to Cloudflare Workers, paste the <code>wss://</code> URL, enter any site, hit GO.</p>
+        <p>Enter any URL and hit GO.</p>
       </div>
       <div class="steps">
-        <div class="step"><span class="step-num">01</span><span class="step-text">Deploy <code>worker.js</code> to Cloudflare Workers</span></div>
-        <div class="step"><span class="step-num">02</span><span class="step-step-text step-text">Paste the worker URL (as <code>wss://</code>) in the Wisp field</span></div>
-        <div class="step"><span class="step-num">03</span><span class="step-text">Wait for green dot, enter a URL, hit <code>GO</code></span></div>
+        <div class="step"><span class="step-num">01</span><span class="step-text">Wait for the dot to turn green</span></div>
+        <div class="step"><span class="step-num">02</span><span class="step-text">Enter any URL — <code>http://</code> or <code>https://</code></span></div>
+        <div class="step"><span class="step-num">03</span><span class="step-text">Hit <code>GO</code></span></div>
       </div>
     </div>
   </div>
 </div>
 <div id="toast"></div>
+
+<script src="/hyperspeed.mux.js"></script>
 <script>
-const bareInput = document.getElementById('bare-input');
 const urlInput  = document.getElementById('url-input');
 const goBtn     = document.getElementById('go-btn');
 const dot       = document.getElementById('status-dot');
 const statusTxt = document.getElementById('status-text');
 const toastEl   = document.getElementById('toast');
+
 let swReady = false;
 
 function setStatus(s, l) { dot.className = 'status-dot ' + (s||''); statusTxt.textContent = l; }
@@ -102,74 +99,71 @@ function showToast(msg, type, dur=3500) {
   clearTimeout(toastEl._t); toastEl._t = setTimeout(() => { toastEl.className=''; }, dur);
 }
 function updateGoBtn() {
-  goBtn.disabled = !(swReady && urlInput.value.trim().length > 4 && bareInput.value.trim().length > 4);
+  goBtn.disabled = !(swReady && urlInput.value.trim().length > 4);
 }
-function sendConfig() {
-  const bare = bareInput.value.trim();
-  const ctrl = navigator.serviceWorker?.controller;
-  if (bare && ctrl) ctrl.postMessage({ type: 'config', bare });
-}
-
 
 urlInput.addEventListener('input', updateGoBtn);
 urlInput.addEventListener('keydown', e => { if (e.key==='Enter' && !goBtn.disabled) go(); });
-bareInput.addEventListener('keydown', e => { if (e.key==='Enter' && !goBtn.disabled) go(); });
 goBtn.addEventListener('click', go);
-navigator.serviceWorker?.addEventListener('controllerchange', sendConfig);
 
 function go() {
   let url = urlInput.value.trim();
   if (!url) return;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-  let parsed; try { parsed = new URL(url); } catch { showToast('Invalid URL','err'); return; }
-  const bare = bareInput.value.trim();
-  if (!bare) { showToast('Enter Wisp server URL first','err'); return; }
-  sendConfig();
-  const qs = parsed.search ? parsed.search + '&' : '?';
-  const proxyPath = '/proxy/' + btoa(parsed.origin) + parsed.pathname + qs + '__bare=' + encodeURIComponent(bare);
-  sessionStorage.setItem('proxy_nav', proxyPath);
-  location.href = '/browse.html';
+
+  // UV encodes URL as btoa and puts it under /proxy/
+  const encoded = __hyperspeed$config.encodeUrl(url);
+  location.href = __hyperspeed$config.prefix + encoded;
 }
 
 async function registerSW() {
   if (!('serviceWorker' in navigator)) { setStatus('err','unsupported'); return; }
   setStatus('spin','registering…');
+
   let reg;
   try {
-    reg = await navigator.serviceWorker.register('/sw.js', { scope:'/', updateViaCache:'none' });
+    reg = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
   } catch(e) {
     setStatus('err','reg failed');
-    showToast('SW reg failed: '+e.message,'err',8000);
+    showToast('SW failed: ' + e.message, 'err', 8000);
     return;
   }
-  // Activate any waiting SW immediately
-  if (reg.waiting) reg.waiting.postMessage({ type:'skip' });
-  // Wait until fully active
+
+  if (reg.waiting) reg.waiting.postMessage({ type: 'skip' });
   await navigator.serviceWorker.ready;
-  // First install: SW can't control current page — reload once
+
   if (!navigator.serviceWorker.controller) {
-    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once:true });
+    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
     return;
   }
-  // Confirm interception via /sw-check
+
+  // Init bare-mux transport in the page context too (for the SW SharedWorker)
+  try {
+    const mux = new BareMux.BareClient();
+    await mux.setTransport('/transport.js', []);
+  } catch(e) {
+    console.warn('[proxy] bare-mux transport init:', e);
+  }
+
+  // Confirm SW intercept
   for (let i = 0; i < 25; i++) {
     try {
-      const r = await fetch('/sw-check', { cache:'no-store' });
+      const r = await fetch('/sw-check', { cache: 'no-store' });
       if (r.ok && (await r.json()).ok) {
         swReady = true;
-        setStatus('ok','sw ready');
-        sendConfig();
+        setStatus('ok', 'sw ready');
         updateGoBtn();
         return;
       }
     } catch {}
     await new Promise(r => setTimeout(r, 200));
   }
-  setStatus('err','not intercepting');
-  showToast('SW not intercepting — try Ctrl+Shift+R','err',8000);
+  setStatus('err', 'not intercepting');
+  showToast('SW not intercepting — try Ctrl+Shift+R', 'err', 8000);
 }
 
 registerSW();
 </script>
+<script src="/hyperspeed.config.js"></script>
 </body>
 </html>

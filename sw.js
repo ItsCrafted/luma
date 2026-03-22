@@ -25,6 +25,10 @@ class DirectBareClient {
         method,
         headers: options.headers || {},
         body,
+        // SW fetches are still subject to CORS. Setting mode:'cors' and
+        // credentials:'omit' avoids preflight credential checks.
+        // The CF worker must echo back the requesting origin as ACAO.
+        mode: 'cors',
         credentials: 'omit',
         redirect: 'follow',
       });

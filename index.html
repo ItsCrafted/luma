@@ -138,12 +138,7 @@ async function registerSW() {
   }
 
   // Init bare-mux transport in the page context too (for the SW SharedWorker)
-  try {
-    const mux = new BareMux.BareClient();
-    await mux.setTransport('/transport.js', []);
-  } catch(e) {
-    console.warn('[proxy] bare-mux transport init:', e);
-  }
+  // Transport is set in SW via setManualTransport — nothing needed here
 
   // Confirm SW intercept
   for (let i = 0; i < 25; i++) {

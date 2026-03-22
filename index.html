@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proxy</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@300;400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --surface: #111; --border: #222; --border-hi: #333;
+    --text: #e8e8e8; --muted: #666; --accent: #7DF9AA; --danger: #f87171;
+    --warn: #fbbf24; --radius: 6px;
+    --mono: 'IBM Plex Mono', monospace; --sans: 'Space Grotesk', sans-serif;
+  }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
+  .shell { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+  header { border-bottom: 1px solid var(--border); padding: 0 16px; display: flex; align-items: stretch; background: var(--surface); gap: 0; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 12px 16px 12px 0; border-right: 1px solid var(--border); margin-right: 12px; flex-shrink: 0; }
+  .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .brand-name { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--accent); letter-spacing: .08em; }
+  .bar { flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px 0; min-width: 0; }
+  .url-input-wrap { flex: 1; min-width: 0; }
+  input[type=text] { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 7px 10px; outline: none; transition: border-color .15s; }
+  input[type=text]:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+  .go-btn { background: var(--accent); color: #000; border: none; border-radius: var(--radius); font-family: var(--mono); font-size: 12px; font-weight: 500; padding: 7px 16px; cursor: pointer; flex-shrink: 0; transition: opacity .15s; }
+  .go-btn:hover { opacity: .85; }
+  .go-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .sep { width: 1px; background: var(--border); margin: 8px 0; flex-shrink: 0; }
+  .field { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .field label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+  .field input { width: 210px; }
+  .status-pill { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); transition: background .3s; }
+  .status-dot.ok { background: var(--accent); }
+  .status-dot.err { background: var(--danger); }
+  .status-dot.spin { background: var(--warn); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .content { position: relative; overflow: hidden; }
+  .landing { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 28px; padding: 40px; }
+  .landing-text { text-align: center; }
+  .landing-text h2 { font-size: 18px; font-weight: 400; font-family: var(--mono); margin-bottom: 8px; }
+  .landing-text p { color: var(--muted); font-size: 13px; max-width: 400px; line-height: 1.7; }
+  .steps { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 400px; }
+  .step { display: flex; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  .step-num { font-family: var(--mono); font-size: 11px; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+  .step-text { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .step-text code { color: var(--text); font-family: var(--mono); font-size: 11px; background: var(--bg); padding: 1px 4px; border-radius: 3px; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface); border: 1px solid var(--border-hi); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 10px 18px; border-radius: 20px; transition: transform .25s; z-index: 9999; white-space: nowrap; }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.err { border-color: var(--danger); color: var(--danger); }
+  #toast.ok  { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <span class="brand-name">PROXY</span>
+    </div>
+    <div class="bar">
+      <div class="url-input-wrap">
+        <input type="text" id="url-input" placeholder="https://example.com" />
+      </div>
+      <button class="go-btn" id="go-btn" disabled>GO</button>
+<input type="hidden" id="bare-input" value="wss://lumatest.craftedgamz.workers.dev" />
+      <div class="status-pill">
+        <div class="status-dot spin" id="status-dot"></div>
+        <span id="status-text">init</span>
+      </div>
+    </div>
+  </header>
+  <div class="content">
+    <div class="landing">
+      <div class="landing-text">
+        <h2>web proxy</h2>
+        <p>Deploy <code>worker.js</code> to Cloudflare Workers, paste the <code>wss://</code> URL, enter any site, hit GO.</p>
+      </div>
+      <div class="steps">
+        <div class="step"><span class="step-num">01</span><span class="step-text">Deploy <code>worker.js</code> to Cloudflare Workers</span></div>
+        <div class="step"><span class="step-num">02</span><span class="step-step-text step-text">Paste the worker URL (as <code>wss://</code>) in the Wisp field</span></div>
+        <div class="step"><span class="step-num">03</span><span class="step-text">Wait for green dot, enter a URL, hit <code>GO</code></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+const bareInput = document.getElementById('bare-input');
+const urlInput  = document.getElementById('url-input');
+const goBtn     = document.getElementById('go-btn');
+const dot       = document.getElementById('status-dot');
+const statusTxt = document.getElementById('status-text');
+const toastEl   = document.getElementById('toast');
+let swReady = false;
+
+function setStatus(s, l) { dot.className = 'status-dot ' + (s||''); statusTxt.textContent = l; }
+function showToast(msg, type, dur=3500) {
+  toastEl.textContent = msg; toastEl.className = 'show' + (type?' '+type:'');
+  clearTimeout(toastEl._t); toastEl._t = setTimeout(() => { toastEl.className=''; }, dur);
+}
+function updateGoBtn() {
+  goBtn.disabled = !(swReady && urlInput.value.trim().length > 4 && bareInput.value.trim().length > 4);
+}
+function sendConfig() {
+  const bare = bareInput.value.trim();
+  const ctrl = navigator.serviceWorker?.controller;
+  if (bare && ctrl) ctrl.postMessage({ type: 'config', bare });
+}
+
+
+urlInput.addEventListener('input', updateGoBtn);
+urlInput.addEventListener('keydown', e => { if (e.key==='Enter' && !goBtn.disabled) go(); });
+bareInput.addEventListener('keydown', e => { if (e.key==='Enter' && !goBtn.disabled) go(); });
+goBtn.addEventListener('click', go);
+navigator.serviceWorker?.addEventListener('controllerchange', sendConfig);
+
+function go() {
+  let url = urlInput.value.trim();
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  let parsed; try { parsed = new URL(url); } catch { showToast('Invalid URL','err'); return; }
+  const bare = bareInput.value.trim();
+  if (!bare) { showToast('Enter Wisp server URL first','err'); return; }
+  sendConfig();
+  const qs = parsed.search ? parsed.search + '&' : '?';
+  const proxyPath = '/proxy/' + btoa(parsed.origin) + parsed.pathname + qs + '__bare=' + encodeURIComponent(bare);
+  sessionStorage.setItem('proxy_nav', proxyPath);
+  location.href = '/browse.html';
+}
+
+async function registerSW() {
+  if (!('serviceWorker' in navigator)) { setStatus('err','unsupported'); return; }
+  setStatus('spin','registering…');
+  let reg;
+  try {
+    reg = await navigator.serviceWorker.register('/sw.js', { scope:'/', updateViaCache:'none' });
+  } catch(e) {
+    setStatus('err','reg failed');
+    showToast('SW reg failed: '+e.message,'err',8000);
+    return;
+  }
+  // Activate any waiting SW immediately
+  if (reg.waiting) reg.waiting.postMessage({ type:'skip' });
+  // Wait until fully active
+  await navigator.serviceWorker.ready;
+  // First install: SW can't control current page — reload once
+  if (!navigator.serviceWorker.controller) {
+    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once:true });
+    return;
+  }
+  // Confirm interception via /sw-check
+  for (let i = 0; i < 25; i++) {
+    try {
+      const r = await fetch('/sw-check', { cache:'no-store' });
+      if (r.ok && (await r.json()).ok) {
+        swReady = true;
+        setStatus('ok','sw ready');
+        sendConfig();
+        updateGoBtn();
+        return;
+      }
+    } catch {}
+    await new Promise(r => setTimeout(r, 200));
+  }
+  setStatus('err','not intercepting');
+  showToast('SW not intercepting — try Ctrl+Shift+R','err',8000);
+}
+
+registerSW();
+</script>
+</body>
+</html>

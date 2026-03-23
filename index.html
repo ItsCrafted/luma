@@ -1,164 +1,781 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Proxy</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hyperspeed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@300;400;500&display=swap');
+  @font-face {
+    font-family: 'Hyperspeed';
+    src: url('/font/hyperspeed.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+  }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #0a0a0a; --surface: #111; --border: #222; --border-hi: #333;
-    --text: #e8e8e8; --muted: #666; --accent: #7DF9AA; --danger: #f87171;
-    --warn: #fbbf24; --radius: 6px;
-    --mono: 'IBM Plex Mono', monospace; --sans: 'Space Grotesk', sans-serif;
+    --bg:        #000;
+    --surface:   #0d0d0d;
+    --surface2:  #111;
+    --surface3:  #161616;
+    --border:    rgba(255,255,255,0.06);
+    --border-hi: rgba(255,255,255,0.11);
+    --text:      #ddd;
+    --muted:     #555;
+    --muted2:    #2e2e2e;
+    --pink:      #d856bf;
+    --cyan:      #03b3c3;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'Space Grotesk', sans-serif;
+    --tabs-h:    34px;
+    --chrome-h:  42px;
+    --sidebar-w: 50px;
   }
-  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
-  .shell { display: grid; grid-template-rows: auto 1fr; height: 100%; }
-  header { border-bottom: 1px solid var(--border); padding: 0 16px; display: flex; align-items: stretch; background: var(--surface); }
-  .brand { display: flex; align-items: center; gap: 10px; padding: 12px 16px 12px 0; border-right: 1px solid var(--border); margin-right: 12px; flex-shrink: 0; }
-  .brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
-  .brand-name { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--accent); letter-spacing: .08em; }
-  .bar { flex: 1; display: flex; align-items: center; gap: 8px; padding: 8px 0; }
-  .url-wrap { flex: 1; }
-  .url-wrap input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 7px 10px; outline: none; transition: border-color .15s; }
-  .url-wrap input:focus { border-color: var(--accent); }
-  input::placeholder { color: var(--muted); }
-  .go-btn { background: var(--accent); color: #000; border: none; border-radius: var(--radius); font-family: var(--mono); font-size: 12px; font-weight: 500; padding: 7px 16px; cursor: pointer; flex-shrink: 0; transition: opacity .15s; }
-  .go-btn:hover { opacity: .85; }
-  .go-btn:disabled { opacity: .4; cursor: not-allowed; }
-  .status-pill { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); transition: background .3s; }
-  .status-dot.ok { background: var(--accent); }
-  .status-dot.err { background: var(--danger); }
-  .status-dot.spin { background: var(--warn); animation: pulse 1s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-  .content { position: relative; overflow: hidden; }
-  .landing { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 28px; padding: 40px; }
-  .landing-text { text-align: center; }
-  .landing-text h2 { font-size: 18px; font-weight: 400; font-family: var(--mono); margin-bottom: 8px; }
-  .landing-text p { color: var(--muted); font-size: 13px; max-width: 400px; line-height: 1.7; }
-  .steps { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 400px; }
-  .step { display: flex; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
-  .step-num { font-family: var(--mono); font-size: 11px; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
-  .step-text { font-size: 12px; color: var(--muted); line-height: 1.6; }
-  .step-text code { color: var(--text); font-family: var(--mono); font-size: 11px; background: var(--bg); padding: 1px 4px; border-radius: 3px; }
-  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface); border: 1px solid var(--border-hi); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 10px 18px; border-radius: 20px; transition: transform .25s; z-index: 9999; white-space: nowrap; }
-  #toast.show { transform: translateX(-50%) translateY(0); }
-  #toast.err { border-color: var(--danger); color: var(--danger); }
-  #toast.ok  { border-color: var(--accent); color: var(--accent); }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+  /* ─── Layout ──────────────────────────────────────────────────────────── */
+  .browser {
+    display: grid;
+    grid-template-rows: var(--tabs-h) var(--chrome-h) 1fr;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    height: 100vh;
+  }
+
+  /* ─── Sidebar ─────────────────────────────────────────────────────────── */
+  .sidebar {
+    grid-row: 1 / 4;
+    grid-column: 1;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 10px 0; gap: 3px; z-index: 200;
+  }
+  .sidebar-logo {
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 8px; cursor: pointer; flex-shrink: 0;
+  }
+  .logo-dots { display: flex; gap: 3px; }
+  .logo-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    animation: logopulse 3s ease-in-out infinite;
+  }
+  .logo-dot.p { background: var(--pink); box-shadow: 0 0 7px var(--pink); }
+  .logo-dot.c { background: var(--cyan); box-shadow: 0 0 7px var(--cyan); animation-delay: 0.5s; }
+  @keyframes logopulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .nav-btn {
+    width: 34px; height: 34px;
+    border: 1px solid transparent;
+    background: none; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted);
+    transition: all 0.18s; position: relative; flex-shrink: 0;
+    font-size: 14px;
+  }
+  .nav-btn:hover { background: var(--surface2); border-color: var(--border); color: #888; }
+  .nav-btn.active { color: var(--pink); border-color: rgba(216,86,191,0.25); background: rgba(216,86,191,0.07); }
+  .nav-btn.active i { filter: drop-shadow(0 0 5px var(--pink)); }
+
+  .nav-tooltip {
+    position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+    background: var(--surface2); border: 1px solid var(--border-hi);
+    color: var(--text); font-family: var(--mono); font-size: 10px;
+    letter-spacing: 1px; padding: 5px 10px; white-space: nowrap;
+    pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 9999;
+  }
+  .nav-btn:hover .nav-tooltip { opacity: 1; }
+  .sidebar-spacer { flex: 1; }
+
+  /* ─── Tab Bar ─────────────────────────────────────────────────────────── */
+  .tab-bar {
+    grid-row: 1; grid-column: 2;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: stretch;
+    overflow-x: auto; overflow-y: hidden;
+    scrollbar-width: none;
+    height: var(--tabs-h);
+  }
+  .tab-bar::-webkit-scrollbar { display: none; }
+
+  .tab {
+    display: flex; align-items: center; gap: 7px;
+    padding: 0 10px 0 12px;
+    min-width: 120px; max-width: 200px;
+    height: 100%; flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    cursor: pointer; position: relative;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--muted); letter-spacing: 0.5px;
+    transition: background 0.15s, color 0.15s;
+    user-select: none;
+  }
+  .tab:hover { background: var(--surface2); color: #888; }
+  .tab.active {
+    background: var(--bg); color: var(--text);
+    border-bottom: 1px solid var(--bg);
+    margin-bottom: -1px;
+  }
+  .tab.active::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, var(--pink), var(--cyan));
+  }
+  .tab-favicon { font-size: 11px; flex-shrink: 0; opacity: 0.7; }
+  .tab.active .tab-favicon { opacity: 1; }
+  .tab-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tab-close {
+    width: 16px; height: 16px; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; color: var(--muted2); flex-shrink: 0;
+    transition: all 0.15s; opacity: 0;
+  }
+  .tab:hover .tab-close { opacity: 1; color: var(--muted); }
+  .tab-close:hover { background: rgba(255,255,255,0.08); color: var(--text) !important; }
+
+  .tab-new-btn {
+    width: 34px; height: 100%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted); font-size: 12px;
+    transition: color 0.15s, background 0.15s; border-right: 1px solid var(--border);
+  }
+  .tab-new-btn:hover { color: var(--cyan); background: var(--surface2); }
+
+  /* ─── Chrome ──────────────────────────────────────────────────────────── */
+  .chrome {
+    grid-row: 2; grid-column: 2;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    gap: 5px; padding: 0 10px;
+    height: var(--chrome-h);
+  }
+
+  .chrome-btn {
+    width: 26px; height: 26px;
+    border: 1px solid transparent; background: none; border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted); font-size: 12px;
+    transition: all 0.15s; flex-shrink: 0;
+  }
+  .chrome-btn:hover { background: var(--surface3); border-color: var(--border); color: #888; }
+  .chrome-btn:disabled { opacity: 0.2; cursor: default; pointer-events: none; }
+
+  .url-bar-wrap { flex: 1; position: relative; }
+  .url-bar {
+    width: 100%; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 3px;
+    color: var(--text); font-family: var(--mono); font-size: 11px;
+    padding: 5px 12px; outline: none; height: 28px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .url-bar:focus {
+    border-color: rgba(216,86,191,0.45);
+    box-shadow: 0 0 0 3px rgba(216,86,191,0.07), 0 0 16px rgba(216,86,191,0.08);
+  }
+  .url-bar::placeholder { color: var(--muted); }
+
+  .sw-pill {
+    display: flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 9px; color: var(--muted);
+    letter-spacing: 1px; flex-shrink: 0;
+    padding: 3px 8px; border: 1px solid var(--border); border-radius: 20px;
+  }
+  .sw-dot {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--muted2);
+    transition: background 0.3s, box-shadow 0.3s; flex-shrink: 0;
+  }
+  .sw-dot.ok   { background: var(--cyan); box-shadow: 0 0 5px var(--cyan); }
+  .sw-dot.err  { background: #ef4444; box-shadow: 0 0 5px #ef4444; }
+  .sw-dot.spin { background: var(--pink); animation: swpulse 0.9s ease-in-out infinite; }
+  @keyframes swpulse { 0%,100%{opacity:1} 50%{opacity:0.15} }
+
+  .load-pill {
+    display: flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 9px; color: var(--muted);
+    letter-spacing: 1px; flex-shrink: 0;
+    padding: 3px 8px; border: 1px solid var(--border); border-radius: 20px;
+    min-width: 64px; justify-content: center;
+    transition: border-color 0.3s, color 0.3s;
+  }
+  .load-pill.loading { color: var(--pink); border-color: rgba(216,86,191,0.25); }
+  .load-pill.done    { color: var(--cyan); border-color: rgba(3,179,195,0.25); }
+
+  /* ─── Viewport ────────────────────────────────────────────────────────── */
+  .viewport {
+    grid-row: 3; grid-column: 2;
+    position: relative; overflow: hidden; background: var(--bg);
+  }
+
+  /* Each tab's content pane */
+  .tab-pane {
+    position: absolute; inset: 0;
+    display: none; overflow: hidden;
+  }
+  .tab-pane.active { display: block; }
+
+  .tab-pane iframe {
+    width: 100%; height: 100%; border: none;
+  }
+
+  .internal-view {
+    width: 100%; height: 100%; overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+
+  /* ─── Speed lines ─────────────────────────────────────────────────────── */
+  .bg-lines { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .spd { position: absolute; height: 1px; opacity: 0; animation: spd linear infinite; }
+  @keyframes spd {
+    0%   { left: -80%; opacity: 0; }
+    8%   { opacity: 1; }
+    92%  { opacity: 1; }
+    100% { left: 110%; opacity: 0; }
+  }
+
+  /* ─── New Tab Page ────────────────────────────────────────────────────── */
+  .newtab {
+    position: relative; z-index: 1;
+    flex: 1; min-height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 50px 40px; gap: 32px;
+  }
+  .nt-corner { position: fixed; width: 90px; height: 90px; border: 1px solid; opacity: 0.1; pointer-events: none; z-index: 0; }
+  .nt-corner-tl { top: 0; left: var(--sidebar-w); border-color: var(--pink) transparent transparent var(--pink); }
+  .nt-corner-br { bottom: 0; right: 0; border-color: transparent var(--cyan) var(--cyan) transparent; }
+
+  .nt-logo { display: flex; flex-direction: column; align-items: center; gap: 10px; animation: fadeUp 0.5s ease both; }
+  .nt-wordmark { font-family: 'Hyperspeed', var(--mono); font-size: 56px; font-weight: normal; letter-spacing: 0; line-height: 1; }
+  .nt-wordmark .h { color: var(--pink); text-shadow: 0 0 40px rgba(216,86,191,0.45), 0 0 80px rgba(216,86,191,0.15); }
+  .nt-wordmark .s { color: var(--cyan); text-shadow: 0 0 40px rgba(3,179,195,0.45), 0 0 80px rgba(3,179,195,0.15); }
+  .nt-sub { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 5px; text-transform: uppercase; }
+
+  .nt-clock { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 3px; animation: fadeUp 0.5s 0.07s ease both; }
+
+  .nt-search-wrap { width: 100%; max-width: 520px; animation: fadeUp 0.5s 0.14s ease both; position: relative; }
+  .nt-search {
+    width: 100%; background: var(--surface);
+    border: 1px solid var(--border-hi); border-radius: 3px;
+    color: var(--text); font-family: var(--mono); font-size: 13px;
+    padding: 13px 44px 13px 16px; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .nt-search:focus { border-color: rgba(216,86,191,0.5); box-shadow: 0 0 0 4px rgba(216,86,191,0.06), 0 0 28px rgba(216,86,191,0.1); }
+  .nt-search::placeholder { color: var(--muted); }
+  .nt-search-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; font-size: 13px; }
+
+  .nt-tiles {
+    display: grid; grid-template-columns: repeat(4, 128px);
+    gap: 8px; animation: fadeUp 0.5s 0.21s ease both;
+  }
+  .nt-tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 3px;
+    padding: 16px 14px; cursor: pointer; transition: all 0.2s;
+    display: flex; flex-direction: column; gap: 9px;
+    position: relative; overflow: hidden;
+  }
+  .nt-tile::after { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 0.3s; }
+  .nt-tile.pk::after { background: linear-gradient(135deg, rgba(216,86,191,0.08), transparent 60%); }
+  .nt-tile.cy::after { background: linear-gradient(135deg, rgba(3,179,195,0.08), transparent 60%); }
+  .nt-tile:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.5); border-color: var(--border-hi); }
+  .nt-tile:hover::after { opacity: 1; }
+  .nt-tile:hover.pk { border-color: rgba(216,86,191,0.22); }
+  .nt-tile:hover.cy { border-color: rgba(3,179,195,0.22); }
+  .tile-icon { font-size: 18px; color: var(--muted); position: relative; z-index: 1; transition: color 0.2s; }
+  .nt-tile.pk:hover .tile-icon { color: var(--pink); }
+  .nt-tile.cy:hover .tile-icon { color: var(--cyan); }
+  .tile-name { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; position: relative; z-index: 1; }
+  .tile-desc { font-size: 11px; color: var(--muted2); line-height: 1.4; position: relative; z-index: 1; }
+
+  .nt-divider { width: 520px; height: 1px; background: var(--border); animation: fadeUp 0.5s 0.28s ease both; }
+
+  .nt-sites { display: flex; gap: 8px; animation: fadeUp 0.5s 0.28s ease both; max-width: 520px; flex-wrap: wrap; justify-content: center; }
+  .nt-site { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: transform 0.2s; }
+  .nt-site:hover { transform: translateY(-2px); }
+  .nt-site-icon {
+    width: 44px; height: 44px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: var(--muted); transition: all 0.2s;
+  }
+  .nt-site:hover .nt-site-icon { border-color: var(--border-hi); color: var(--text); box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
+  .nt-site-label { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 1px; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ─── Stub pages ──────────────────────────────────────────────────────── */
+  .stub-page {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    flex: 1; min-height: 100%; gap: 14px; color: var(--muted); font-family: var(--mono);
+  }
+  .stub-icon { font-size: 32px; opacity: 0.4; }
+  .stub-label { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; }
+  .stub-desc { font-size: 10px; color: var(--muted2); }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--muted2); border-radius: 2px; }
 </style>
 </head>
 <body>
-<div class="shell">
-  <header>
-    <div class="brand">
-      <div class="brand-dot"></div>
-      <span class="brand-name">PROXY</span>
-    </div>
-    <div class="bar">
-      <div class="url-wrap">
-        <input type="text" id="url-input" placeholder="https://example.com" />
-      </div>
-      <button class="go-btn" id="go-btn" disabled>GO</button>
-      <div class="status-pill">
-        <div class="status-dot spin" id="status-dot"></div>
-        <span id="status-text">init</span>
+
+<div class="bg-lines" id="bg-lines"></div>
+
+<div class="browser">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo" onclick="tabNavigate(activeTabId, 'hyperspeed://newtab')">
+      <div class="logo-dots">
+        <div class="logo-dot p"></div>
+        <div class="logo-dot c"></div>
       </div>
     </div>
-  </header>
-  <div class="content">
-    <div class="landing">
-      <div class="landing-text">
-        <h2>web proxy</h2>
-        <p>Enter any URL and hit GO.</p>
-      </div>
-      <div class="steps">
-        <div class="step"><span class="step-num">01</span><span class="step-text">Wait for the dot to turn green</span></div>
-        <div class="step"><span class="step-num">02</span><span class="step-text">Enter any URL — <code>http://</code> or <code>https://</code></span></div>
-        <div class="step"><span class="step-num">03</span><span class="step-text">Hit <code>GO</code></span></div>
-      </div>
+
+    <button class="nav-btn active" id="btn-newtab" onclick="tabNavigate(activeTabId,'hyperspeed://newtab')">
+      <i class="fa-solid fa-house"></i>
+      <span class="nav-tooltip">newtab</span>
+    </button>
+    <button class="nav-btn" id="btn-games" onclick="tabNavigate(activeTabId,'hyperspeed://games')">
+      <i class="fa-solid fa-gamepad"></i>
+      <span class="nav-tooltip">games</span>
+    </button>
+    <button class="nav-btn" id="btn-movies" onclick="tabNavigate(activeTabId,'hyperspeed://movies')">
+      <i class="fa-solid fa-film"></i>
+      <span class="nav-tooltip">movies</span>
+    </button>
+    <button class="nav-btn" id="btn-ai" onclick="tabNavigate(activeTabId,'hyperspeed://ai')">
+      <i class="fa-solid fa-robot"></i>
+      <span class="nav-tooltip">ai</span>
+    </button>
+
+    <div class="sidebar-spacer"></div>
+
+    <button class="nav-btn" id="btn-settings" onclick="tabNavigate(activeTabId,'hyperspeed://settings')">
+      <i class="fa-solid fa-gear"></i>
+      <span class="nav-tooltip">settings</span>
+    </button>
+    <button class="nav-btn" id="btn-about" onclick="tabNavigate(activeTabId,'hyperspeed://about')">
+      <i class="fa-solid fa-circle-info"></i>
+      <span class="nav-tooltip">about</span>
+    </button>
+  </aside>
+
+  <!-- ── Tab Bar ── -->
+  <div class="tab-bar" id="tab-bar">
+    <div class="tab-new-btn" onclick="newTab()" title="New tab">
+      <i class="fa-solid fa-plus"></i>
     </div>
   </div>
-</div>
-<div id="toast"></div>
 
+  <!-- ── Chrome ── -->
+  <header class="chrome">
+    <button class="chrome-btn" id="btn-back" onclick="goBack()" disabled title="Back">
+      <i class="fa-solid fa-chevron-left"></i>
+    </button>
+    <button class="chrome-btn" id="btn-fwd" onclick="goForward()" disabled title="Forward">
+      <i class="fa-solid fa-chevron-right"></i>
+    </button>
+    <button class="chrome-btn" id="btn-reload" onclick="reloadPage()" title="Reload">
+      <i class="fa-solid fa-rotate-right"></i>
+    </button>
+
+    <div class="url-bar-wrap">
+      <input class="url-bar" id="url-bar" type="text"
+        placeholder="search or enter a url…"
+        spellcheck="false" autocomplete="off"
+        onkeydown="handleUrlKey(event)"
+        onfocus="this.select()"
+      />
+    </div>
+
+    <div class="sw-pill">
+      <div class="sw-dot spin" id="sw-dot"></div>
+      <span id="sw-label">init</span>
+    </div>
+    <div class="load-pill" id="load-pill">—</div>
+  </header>
+
+  <!-- ── Viewport ── -->
+  <main class="viewport" id="viewport"></main>
+
+</div>
 
 <script>
-const urlInput  = document.getElementById('url-input');
-const goBtn     = document.getElementById('go-btn');
-const dot       = document.getElementById('status-dot');
-const statusTxt = document.getElementById('status-text');
-const toastEl   = document.getElementById('toast');
-
-let swReady = false;
-
-function setStatus(s, l) { dot.className = 'status-dot ' + (s||''); statusTxt.textContent = l; }
-function showToast(msg, type, dur=3500) {
-  toastEl.textContent = msg; toastEl.className = 'show' + (type?' '+type:'');
-  clearTimeout(toastEl._t); toastEl._t = setTimeout(() => { toastEl.className=''; }, dur);
-}
-function updateGoBtn() {
-  goBtn.disabled = !(swReady && urlInput.value.trim().length > 4);
-}
-
-urlInput.addEventListener('input', updateGoBtn);
-urlInput.addEventListener('keydown', e => { if (e.key==='Enter' && !goBtn.disabled) go(); });
-goBtn.addEventListener('click', go);
-
-function go() {
-  let url = urlInput.value.trim();
-  if (!url) return;
-  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-
-  // UV encodes URL as btoa and puts it under /proxy/
-  const encoded = __hyperspeed$config.encodeUrl(url);
-  location.href = __hyperspeed$config.prefix + encoded;
-}
-
-async function registerSW() {
-  if (!('serviceWorker' in navigator)) { setStatus('err','unsupported'); return; }
-  setStatus('spin','registering…');
-
-  let reg;
-  try {
-    reg = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
-  } catch(e) {
-    setStatus('err','reg failed');
-    showToast('SW failed: ' + e.message, 'err', 8000);
-    return;
+// ── Speed lines ──────────────────────────────────────────────────────────────
+(function() {
+  const c = document.getElementById('bg-lines');
+  const cols = ['rgba(216,86,191,0.55)','rgba(3,179,195,0.55)','rgba(216,86,191,0.3)','rgba(3,179,195,0.3)','rgba(216,86,191,0.18)','rgba(3,179,195,0.18)'];
+  for (let i = 0; i < 10; i++) {
+    const el = document.createElement('div');
+    el.className = 'spd';
+    el.style.cssText = `top:${Math.random()*100}%;width:${60+Math.random()*180}px;background:linear-gradient(90deg,transparent,${cols[i%6]},transparent);animation-duration:${2.5+Math.random()*3.5}s;animation-delay:${Math.random()*5}s;`;
+    c.appendChild(el);
   }
+})();
 
-  if (reg.waiting) reg.waiting.postMessage({ type: 'skip' });
-  await navigator.serviceWorker.ready;
+// ── Tab system ───────────────────────────────────────────────────────────────
+let tabs = {};
+let activeTabId = null;
+let tabCounter = 0;
+let clockInterval = null;
+let _navStart = null;
+let _tickTimer = null;
 
-  if (!navigator.serviceWorker.controller) {
-    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
-    return;
+function genId() { return 'tab-' + (++tabCounter); }
+
+function newTab(url = 'hyperspeed://newtab') {
+  const id = genId();
+  tabs[id] = {
+    id, url,
+    history: [url], histIdx: 0,
+    title: 'new tab', favicon: 'fa-solid fa-house'
+  };
+  // Create pane
+  const pane = document.createElement('div');
+  pane.className = 'tab-pane';
+  pane.id = 'pane-' + id;
+  document.getElementById('viewport').appendChild(pane);
+  // Render tab strip element
+  renderTabStrip();
+  switchTab(id);
+  return id;
+}
+
+function closeTab(id, e) {
+  if (e) e.stopPropagation();
+  const ids = Object.keys(tabs);
+  if (ids.length === 1) { newTab(); }
+  // Switch away first if active
+  if (activeTabId === id) {
+    const idx = ids.indexOf(id);
+    const next = ids[idx + 1] || ids[idx - 1];
+    if (next && next !== id) switchTab(next);
   }
+  // Remove pane
+  const pane = document.getElementById('pane-' + id);
+  if (pane) pane.remove();
+  delete tabs[id];
+  renderTabStrip();
+}
 
-  // Init bare-mux transport in the page context too (for the SW SharedWorker)
-  // Transport is set in SW via setManualTransport — nothing needed here
-
-  // Confirm SW intercept
-  for (let i = 0; i < 25; i++) {
-    try {
-      const r = await fetch('/sw-check', { cache: 'no-store' });
-      if (r.ok && (await r.json()).ok) {
-        swReady = true;
-        setStatus('ok', 'sw ready');
-        updateGoBtn();
-        return;
+async function switchTab(id) {
+  if (!tabs[id]) return;
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  const pane = document.getElementById('pane-' + id);
+  if (pane) {
+    pane.classList.add('active');
+    // Render content if pane is empty (first switch to this tab)
+    if (!pane.hasChildNodes()) {
+      const tab = tabs[id];
+      if (tab.url.startsWith('hyperspeed://')) {
+        await renderPane(id, tab.url.replace('hyperspeed://',''));
+      } else {
+        renderWeb(id, tab.url);
       }
-    } catch {}
-    await new Promise(r => setTimeout(r, 200));
+    }
   }
-  setStatus('err', 'not intercepting');
-  showToast('SW not intercepting — try Ctrl+Shift+R', 'err', 8000);
+  activeTabId = id;
+  renderTabStrip();
+  const tab = tabs[id];
+  document.getElementById('url-bar').value = tab.url;
+  updateChromeNav();
+  updateSidebarActive(tab.url);
 }
 
+function renderTabStrip() {
+  const bar = document.getElementById('tab-bar');
+  // Keep the + button, rebuild tabs before it
+  bar.innerHTML = '';
+  Object.values(tabs).forEach(tab => {
+    const el = document.createElement('div');
+    el.className = 'tab' + (tab.id === activeTabId ? ' active' : '');
+    el.dataset.id = tab.id;
+    el.innerHTML = `
+      <span class="tab-favicon"><i class="${tab.favicon}"></i></span>
+      <span class="tab-title">${tab.title}</span>
+      <span class="tab-close" onclick="closeTab('${tab.id}', event)"><i class="fa-solid fa-xmark"></i></span>
+    `;
+    el.addEventListener('click', () => switchTab(tab.id));
+    bar.appendChild(el);
+  });
+  const plus = document.createElement('div');
+  plus.className = 'tab-new-btn';
+  plus.title = 'New tab';
+  plus.innerHTML = '<i class="fa-solid fa-plus"></i>';
+  plus.onclick = () => newTab();
+  bar.appendChild(plus);
+}
+
+// ── Per-tab navigation ───────────────────────────────────────────────────────
+function tabNavigate(id, url, push = true) {
+  if (!id || !tabs[id]) id = activeTabId;
+  if (!url) return;
+
+  // Normalize
+  if (!url.includes('://') && !url.startsWith('/')) {
+    url = looksLikeUrl(url)
+      ? (url.startsWith('http') ? url : 'https://' + url)
+      : 'https://www.bing.com/search?q=' + encodeURIComponent(url);
+  }
+
+  const tab = tabs[id];
+  if (push) {
+    tab.history = tab.history.slice(0, tab.histIdx + 1);
+    tab.history.push(url);
+    tab.histIdx = tab.history.length - 1;
+  }
+  tab.url = url;
+
+  // Update tab metadata
+  if (url.startsWith('hyperspeed://')) {
+    const page = url.replace('hyperspeed://','');
+    tab.title = page;
+    tab.favicon = pageIcon(page);
+    renderPane(id, page);
+  } else {
+    tab.title = truncateUrl(url);
+    tab.favicon = 'fa-solid fa-globe';
+    renderWeb(id, url);
+  }
+
+  if (id === activeTabId) {
+    document.getElementById('url-bar').value = url;
+    updateChromeNav();
+    updateSidebarActive(url);
+  }
+  renderTabStrip();
+}
+
+function pageIcon(page) {
+  return {
+    newtab:   'fa-solid fa-house',
+    games:    'fa-solid fa-gamepad',
+    movies:   'fa-solid fa-film',
+    ai:       'fa-solid fa-robot',
+    settings: 'fa-solid fa-gear',
+    about:    'fa-solid fa-circle-info',
+  }[page] || 'fa-solid fa-house';
+}
+
+function truncateUrl(url) {
+  try { return new URL(url).hostname.replace('www.',''); } catch { return url.substring(0,28); }
+}
+
+function timerStart() {
+  _navStart = performance.now();
+  if (_tickTimer) clearInterval(_tickTimer);
+  const pill = document.getElementById('load-pill');
+  pill.className = 'load-pill loading';
+  _tickTimer = setInterval(() => {
+    const ms = performance.now() - _navStart;
+    pill.textContent = ms < 1000 ? Math.round(ms) + 'ms' : (ms/1000).toFixed(2) + 's';
+  }, 50);
+}
+
+function timerStop() {
+  if (!_navStart) return;
+  if (_tickTimer) { clearInterval(_tickTimer); _tickTimer = null; }
+  const ms = performance.now() - _navStart;
+  const pill = document.getElementById('load-pill');
+  pill.textContent = ms < 1000 ? Math.round(ms) + 'ms' : (ms/1000).toFixed(2) + 's';
+  pill.className = 'load-pill done';
+  _navStart = null;
+}
+
+async function renderPane(id, page) {
+  const pane = document.getElementById('pane-' + id);
+  if (!pane) return;
+  pane.innerHTML = '';
+  // Load internal pages in their own iframe so they get a full document
+  // context and don't inherit broken height from the parent flex chain.
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'width:100%;height:100%;border:none;background:transparent;';
+  frame.src = '/pages/' + page + '.html';
+  timerStart();
+  frame.onload = () => timerStop();
+  pane.appendChild(frame);
+}
+
+function renderWeb(id, url) {
+  const pane = document.getElementById('pane-' + id);
+  if (!pane) return;
+  pane.innerHTML = '';
+  const frame = document.createElement('iframe');
+  frame.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-top-navigation';
+  const encoded = (typeof __hyperspeed$config !== 'undefined')
+    ? __hyperspeed$config.encodeUrl(url)
+    : encodeURIComponent(btoa(url));
+  frame.src = '/hypertunnel/' + encoded;
+  timerStart();
+  frame.onload = () => timerStop();
+  pane.appendChild(frame);
+}
+
+// ── Build new tab HTML ───────────────────────────────────────────────────────
+function buildNewTab() {
+  const sites = [
+    ['fa-brands fa-wikipedia-w', 'wikipedia.org', 'Wiki'],
+    ['fa-brands fa-reddit',      'reddit.com',    'Reddit'],
+    ['fa-brands fa-x-twitter',   'x.com',         'X'],
+    ['fa-brands fa-github',      'github.com',    'GitHub'],
+    ['fa-solid fa-newspaper',    'news.ycombinator.com', 'HN'],
+    ['fa-solid fa-music',        'open.spotify.com', 'Spotify'],
+  ];
+  return `
+    <div class="nt-corner nt-corner-tl"></div>
+    <div class="nt-corner nt-corner-br"></div>
+    <div class="newtab">
+      <div class="nt-logo">
+        <div class="nt-wordmark"><span class="h">HYPER</span><span class="s">SPEED</span></div>
+        <div class="nt-sub">private &nbsp;&bull;&nbsp; fast &nbsp;&bull;&nbsp; unrestricted</div>
+      </div>
+      <div class="nt-clock" id="nt-clock"></div>
+      <div class="nt-search-wrap">
+        <input class="nt-search" id="nt-search" placeholder="search or enter a url…" spellcheck="false" autocomplete="off"/>
+        <div class="nt-search-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+      </div>
+      <div class="nt-tiles">
+        <div class="nt-tile pk" onclick="tabNavigate(activeTabId,'hyperspeed://games')">
+          <div class="tile-icon"><i class="fa-solid fa-gamepad"></i></div>
+          <div class="tile-name">games</div>
+          <div class="tile-desc">Play unblocked</div>
+        </div>
+        <div class="nt-tile cy" onclick="tabNavigate(activeTabId,'hyperspeed://movies')">
+          <div class="tile-icon"><i class="fa-solid fa-film"></i></div>
+          <div class="tile-name">movies</div>
+          <div class="tile-desc">Stream free</div>
+        </div>
+        <div class="nt-tile pk" onclick="tabNavigate(activeTabId,'hyperspeed://ai')">
+          <div class="tile-icon"><i class="fa-solid fa-robot"></i></div>
+          <div class="tile-name">ai</div>
+          <div class="tile-desc">Ask anything</div>
+        </div>
+        <div class="nt-tile cy" onclick="tabNavigate(activeTabId,'hyperspeed://settings')">
+          <div class="tile-icon"><i class="fa-solid fa-gear"></i></div>
+          <div class="tile-name">settings</div>
+          <div class="tile-desc">Configure</div>
+        </div>
+      </div>
+      <div class="nt-divider"></div>
+      <div class="nt-sites">
+        ${sites.map(([ic,url,label]) => `
+          <div class="nt-site" onclick="tabNavigate(activeTabId,'https://${url}')">
+            <div class="nt-site-icon"><i class="${ic}"></i></div>
+            <div class="nt-site-label">${label}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function setupNewTab(view) {
+  const search = view.querySelector('#nt-search');
+  if (search) search.addEventListener('keydown', e => {
+    if (e.key === 'Enter') tabNavigate(activeTabId, e.target.value.trim());
+  });
+  if (clockInterval) clearInterval(clockInterval);
+  tickClock();
+  clockInterval = setInterval(tickClock, 1000);
+}
+
+function tickClock() {
+  const el = document.getElementById('nt-clock');
+  if (!el) return;
+  const now = new Date(), pad = n => String(n).padStart(2,'0');
+  const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  el.textContent = `${days[now.getDay()]}  ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
+function buildStub(page, descOverride) {
+  const map = {
+    games:    ['fa-solid fa-gamepad',       'games',    'coming soon'],
+    movies:   ['fa-solid fa-film',           'movies',   'coming soon'],
+    ai:       ['fa-solid fa-robot',          'ai',       'coming soon'],
+    settings: ['fa-solid fa-gear',           'settings', 'coming soon'],
+    about:    ['fa-solid fa-circle-info',    'about',    'coming soon'],
+  };
+  const [icon, label, desc] = map[page] || ['fa-solid fa-circle-question', page, ''];
+  return `<div class="stub-page"><div class="stub-icon"><i class="${icon}"></i></div><div class="stub-label">${label}</div><div class="stub-desc">${descOverride || desc}</div></div>`;
+}
+
+// ── URL bar / chrome nav ─────────────────────────────────────────────────────
+function handleUrlKey(e) {
+  if (e.key === 'Enter') tabNavigate(activeTabId, e.target.value.trim());
+}
+
+function goBack() {
+  const tab = tabs[activeTabId];
+  if (!tab || tab.histIdx <= 0) return;
+  tab.histIdx--;
+  tabNavigate(activeTabId, tab.history[tab.histIdx], false);
+}
+function goForward() {
+  const tab = tabs[activeTabId];
+  if (!tab || tab.histIdx >= tab.history.length - 1) return;
+  tab.histIdx++;
+  tabNavigate(activeTabId, tab.history[tab.histIdx], false);
+}
+function reloadPage() {
+  const tab = tabs[activeTabId];
+  if (!tab) return;
+  tabNavigate(activeTabId, tab.url, false);
+}
+function updateChromeNav() {
+  const tab = tabs[activeTabId];
+  document.getElementById('btn-back').disabled = !tab || tab.histIdx <= 0;
+  document.getElementById('btn-fwd').disabled  = !tab || tab.histIdx >= tab.history.length - 1;
+}
+function updateSidebarActive(url) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  if (url.startsWith('hyperspeed://')) {
+    const page = url.replace('hyperspeed://','');
+    const btn = document.getElementById('btn-' + page);
+    if (btn) btn.classList.add('active');
+  }
+}
+function looksLikeUrl(s) {
+  return /^https?:\/\//i.test(s) || /^[\w-]+\.[a-z]{2,}/i.test(s);
+}
+
+// ── Service Worker ───────────────────────────────────────────────────────────
+async function registerSW() {
+  const dot = document.getElementById('sw-dot');
+  const lbl = document.getElementById('sw-label');
+  const set = (cls, txt) => { dot.className = 'sw-dot ' + cls; lbl.textContent = txt; };
+  if (!('serviceWorker' in navigator)) { set('err','unsupported'); return; }
+  set('spin','init');
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
+    if (reg.waiting) reg.waiting.postMessage({ type: 'skip' });
+    await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), { once: true });
+      return;
+    }
+    for (let i = 0; i < 25; i++) {
+      try {
+        const r = await fetch('/sw-check', { cache: 'no-store' });
+        if (r.ok && (await r.json()).ok) { set('ok','ready'); return; }
+      } catch {}
+      await new Promise(r => setTimeout(r, 200));
+    }
+    set('err','error');
+  } catch { set('err','failed'); }
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+newTab('hyperspeed://newtab');
 registerSW();
+
+const s = document.createElement('script');
+s.src = '/hyperspeed/hyperspeed.config.js';
+document.head.appendChild(s);
 </script>
-<script src="/hyperspeed.config.js"></script>
 </body>
 </html>

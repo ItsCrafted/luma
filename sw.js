@@ -1,19 +1,12 @@
-importScripts('/hyperspeed.bundle.js');
-importScripts('/hyperspeed.config.js');
-
+importScripts('/hyperspeed/hyperspeed.bundle.js');
+importScripts('/hyperspeed/hyperspeed.config.js');
 const WORKER_URL = 'https://lumatest.craftedgamz.workers.dev';
-
-// Replace BareClient with a direct fetch to our CF Worker.
-// hyperspeed.sw.js expects: { rawHeaders, status, statusText, body, finalURL, text() }
 class DirectBareClient {
   async fetch(url, options = {}) {
     const target = url instanceof URL ? url.href : String(url);
     const fetchURL = WORKER_URL + '?url=' + encodeURIComponent(target);
 
     const method = (options.method || 'GET').toUpperCase();
-
-    // The SW passes body as a Blob (from await e.blob()).
-    // Force null for GET/HEAD regardless of what was passed.
     let body = null;
     if (!['GET', 'HEAD'].includes(method) && options.body != null) {
       body = options.body;
@@ -25,16 +18,11 @@ class DirectBareClient {
         method,
         headers: options.headers || {},
         body,
-        // SW fetches are still subject to CORS. Setting mode:'cors' and
-        // credentials:'omit' avoids preflight credential checks.
-        // The CF worker must echo back the requesting origin as ACAO.
         mode: 'cors',
         credentials: 'omit',
         redirect: 'follow',
       });
     } catch (networkErr) {
-      // CF worker unreachable — return synthetic 502 so hyperspeed.sw.js
-      // doesn't throw and produce an unhandled 500.
       console.warn('[DirectBareClient] network error:', networkErr.message);
       const empty = new Uint8Array(0);
       return {
@@ -47,17 +35,13 @@ class DirectBareClient {
       };
     }
 
-    // Build rawHeaders object (hyperspeed.sw.js iterates with for...in)
     const rawHeaders = {};
     for (const [k, v] of res.headers.entries()) {
       rawHeaders[k] = v;
     }
 
-    // x-final-url is set by our CF worker to the real post-redirect URL.
-    // res.url here would be the CF worker's own URL, not the target's.
     const finalURL = rawHeaders['x-final-url'] || target;
 
-    // Buffer the body once so both .body and .text() work independently.
     let bodyBuf;
     try {
       bodyBuf = await res.arrayBuffer();
@@ -84,15 +68,10 @@ class DirectBareClient {
   }
 }
 
-// Patch Hyperspeed.BareClient before loading the SW class
 self.Ultraviolet = self.Hyperspeed;
 self.Ultraviolet.BareClient = DirectBareClient;
 self.Hyperspeed.BareClient = DirectBareClient;
 
-// Suppress bare-mux BroadcastChannel errors in the SW context.
-// When worker-destination scripts are injected, the bundle initialises bare-mux
-// which creates a BroadcastChannel and may try to read localStorage — both can
-// throw or misbehave inside a SW. Wrap BroadcastChannel to swallow those errors.
 if (typeof BroadcastChannel !== 'undefined') {
   const _OrigBC = BroadcastChannel;
   self.BroadcastChannel = class SafeBroadcastChannel extends _OrigBC {
@@ -104,7 +83,7 @@ if (typeof BroadcastChannel !== 'undefined') {
   };
 }
 
-importScripts('/hyperspeed.sw.js');
+importScripts('/hyperspeed/hyperspeed.sw.js');
 
 let hyperspeed = null;
 try {

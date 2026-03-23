@@ -1,12 +1,24 @@
 self.__hyperspeed$config = {
-  prefix: '/proxy/',
+  prefix: '/hypertunnel/',
   encodeUrl: (url) => encodeURIComponent(btoa(url)),
-  decodeUrl: (str) => atob(decodeURIComponent(str)),
-  handler: '/hyperspeed.handler.js',
-  client: '/hyperspeed.client.js',
-  bundle: '/hyperspeed.bundle.js',
-  config: '/hyperspeed.config.js',
-  sw: '/sw.js',
+  decodeUrl: (str) => {
+    try {
+      return atob(decodeURIComponent(str));
+    } catch(e) {
+      // Fallback: strip trailing padding issues and retry
+      try {
+        const s = decodeURIComponent(str).replace(/[^A-Za-z0-9+/=]/g, '');
+        return atob(s);
+      } catch(e2) {
+        return decodeURIComponent(str);
+      }
+    }
+  },
+  handler: '/hyperspeed/hyperspeed.handler.js',
+  client:  '/hyperspeed/hyperspeed.client.js',
+  bundle:  '/hyperspeed/hyperspeed.bundle.js',
+  config:  '/hyperspeed/hyperspeed.config.js',
+  sw:      '/sw.js',
 };
 
 // ── No bare-mux patch ────────────────────────────────────────────────────────

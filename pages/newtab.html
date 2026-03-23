@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>New Tab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+<style>
+  @font-face {
+    font-family: 'Hyperspeed';
+    src: url('/font/hyperspeed.otf') format('opentype');
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:        #000;
+    --surface:   #0d0d0d;
+    --border:    rgba(255,255,255,0.06);
+    --border-hi: rgba(255,255,255,0.11);
+    --text:      #ddd;
+    --muted:     #555;
+    --muted2:    #2e2e2e;
+    --pink:      #d856bf;
+    --cyan:      #03b3c3;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'Space Grotesk', sans-serif;
+  }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); overflow: hidden; }
+
+  .bg-lines { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .spd { position: absolute; height: 1px; opacity: 0; animation: spd linear infinite; }
+  @keyframes spd { 0%{left:-80%;opacity:0} 8%{opacity:1} 92%{opacity:1} 100%{left:110%;opacity:0} }
+
+  .nt-corner { position: fixed; width: 90px; height: 90px; border: 1px solid; opacity: 0.1; pointer-events: none; z-index: 0; }
+  .nt-corner-tl { top: 0; left: 0; border-color: var(--pink) transparent transparent var(--pink); }
+  .nt-corner-br { bottom: 0; right: 0; border-color: transparent var(--cyan) var(--cyan) transparent; }
+
+  .newtab {
+    position: relative; z-index: 1; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 50px 40px; gap: 32px; overflow-y: auto;
+  }
+
+  .nt-logo { display: flex; flex-direction: column; align-items: center; gap: 10px; animation: fadeUp 0.5s ease both; }
+  .nt-wordmark { font-family: 'Hyperspeed', var(--mono); font-size: 56px; font-weight: normal; line-height: 1; }
+  .nt-wordmark .h { color: var(--pink); text-shadow: 0 0 40px rgba(216,86,191,0.45), 0 0 80px rgba(216,86,191,0.15); }
+  .nt-wordmark .s { color: var(--cyan); text-shadow: 0 0 40px rgba(3,179,195,0.45), 0 0 80px rgba(3,179,195,0.15); }
+  .nt-sub { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 5px; text-transform: uppercase; }
+
+  .nt-clock { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 3px; animation: fadeUp 0.5s 0.07s ease both; }
+
+  .nt-search-wrap { width: 100%; max-width: 520px; animation: fadeUp 0.5s 0.14s ease both; position: relative; }
+  .nt-search {
+    width: 100%; background: var(--surface); border: 1px solid var(--border-hi); border-radius: 3px;
+    color: var(--text); font-family: var(--mono); font-size: 13px;
+    padding: 13px 44px 13px 16px; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .nt-search:focus { border-color: rgba(216,86,191,0.5); box-shadow: 0 0 0 4px rgba(216,86,191,0.06), 0 0 28px rgba(216,86,191,0.1); }
+  .nt-search::placeholder { color: var(--muted); }
+  .nt-search-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; font-size: 13px; }
+
+  .nt-tiles { display: grid; grid-template-columns: repeat(4, 128px); gap: 8px; animation: fadeUp 0.5s 0.21s ease both; }
+  .nt-tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 3px;
+    padding: 16px 14px; cursor: pointer; transition: all 0.2s;
+    display: flex; flex-direction: column; gap: 9px; position: relative; overflow: hidden;
+  }
+  .nt-tile::after { content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 0.3s; }
+  .nt-tile.pk::after { background: linear-gradient(135deg, rgba(216,86,191,0.08), transparent 60%); }
+  .nt-tile.cy::after { background: linear-gradient(135deg, rgba(3,179,195,0.08), transparent 60%); }
+  .nt-tile:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.5); border-color: var(--border-hi); }
+  .nt-tile:hover::after { opacity: 1; }
+  .nt-tile:hover.pk { border-color: rgba(216,86,191,0.22); }
+  .nt-tile:hover.cy { border-color: rgba(3,179,195,0.22); }
+  .tile-icon { font-size: 18px; color: var(--muted); position: relative; z-index: 1; transition: color 0.2s; }
+  .nt-tile.pk:hover .tile-icon { color: var(--pink); }
+  .nt-tile.cy:hover .tile-icon { color: var(--cyan); }
+  .tile-name { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; position: relative; z-index: 1; }
+  .tile-desc { font-size: 11px; color: var(--muted2); line-height: 1.4; position: relative; z-index: 1; }
+
+  .nt-divider { width: 520px; height: 1px; background: var(--border); animation: fadeUp 0.5s 0.28s ease both; }
+
+  .nt-sites { display: flex; gap: 8px; animation: fadeUp 0.5s 0.28s ease both; max-width: 520px; flex-wrap: wrap; justify-content: center; }
+  .nt-site { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: transform 0.2s; }
+  .nt-site:hover { transform: translateY(-2px); }
+  .nt-site-icon {
+    width: 44px; height: 44px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: var(--muted); transition: all 0.2s;
+  }
+  .nt-site:hover .nt-site-icon { border-color: var(--border-hi); color: var(--text); box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
+  .nt-site-label { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 1px; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--muted2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="bg-lines" id="bg-lines"></div>
+<div class="nt-corner nt-corner-tl"></div>
+<div class="nt-corner nt-corner-br"></div>
+
+<div class="newtab">
+  <div class="nt-logo">
+    <div class="nt-wordmark"><span class="h">HYPER</span><span class="s">SPEED</span></div>
+    <div class="nt-sub">private &nbsp;&bull;&nbsp; fast &nbsp;&bull;&nbsp; unrestricted</div>
+  </div>
+
+  <div class="nt-clock" id="nt-clock"></div>
+
+  <div class="nt-search-wrap">
+    <input class="nt-search" id="nt-search" placeholder="search or enter a url…" spellcheck="false" autocomplete="off"/>
+    <div class="nt-search-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+  </div>
+
+  <div class="nt-tiles">
+    <div class="nt-tile pk" onclick="nav('hyperspeed://games')">
+      <div class="tile-icon"><i class="fa-solid fa-gamepad"></i></div>
+      <div class="tile-name">games</div>
+      <div class="tile-desc">Play unblocked</div>
+    </div>
+    <div class="nt-tile cy" onclick="nav('hyperspeed://movies')">
+      <div class="tile-icon"><i class="fa-solid fa-film"></i></div>
+      <div class="tile-name">movies</div>
+      <div class="tile-desc">Stream free</div>
+    </div>
+    <div class="nt-tile pk" onclick="nav('hyperspeed://ai')">
+      <div class="tile-icon"><i class="fa-solid fa-robot"></i></div>
+      <div class="tile-name">ai</div>
+      <div class="tile-desc">Ask anything</div>
+    </div>
+    <div class="nt-tile cy" onclick="nav('hyperspeed://settings')">
+      <div class="tile-icon"><i class="fa-solid fa-gear"></i></div>
+      <div class="tile-name">settings</div>
+      <div class="tile-desc">Configure</div>
+    </div>
+  </div>
+
+  <div class="nt-divider"></div>
+
+  <div class="nt-sites">
+    <div class="nt-site" onclick="nav('https://wikipedia.org')">
+      <div class="nt-site-icon"><i class="fa-brands fa-wikipedia-w"></i></div>
+      <div class="nt-site-label">Wiki</div>
+    </div>
+    <div class="nt-site" onclick="nav('https://reddit.com')">
+      <div class="nt-site-icon"><i class="fa-brands fa-reddit"></i></div>
+      <div class="nt-site-label">Reddit</div>
+    </div>
+    <div class="nt-site" onclick="nav('https://x.com')">
+      <div class="nt-site-icon"><i class="fa-brands fa-x-twitter"></i></div>
+      <div class="nt-site-label">X</div>
+    </div>
+    <div class="nt-site" onclick="nav('https://github.com')">
+      <div class="nt-site-icon"><i class="fa-brands fa-github"></i></div>
+      <div class="nt-site-label">GitHub</div>
+    </div>
+    <div class="nt-site" onclick="nav('https://news.ycombinator.com')">
+      <div class="nt-site-icon"><i class="fa-solid fa-newspaper"></i></div>
+      <div class="nt-site-label">HN</div>
+    </div>
+    <div class="nt-site" onclick="nav('https://open.spotify.com')">
+      <div class="nt-site-icon"><i class="fa-brands fa-spotify"></i></div>
+      <div class="nt-site-label">Spotify</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Speed lines
+  (function() {
+    const c = document.getElementById('bg-lines');
+    const cols = ['rgba(216,86,191,0.55)','rgba(3,179,195,0.55)','rgba(216,86,191,0.3)','rgba(3,179,195,0.3)','rgba(216,86,191,0.18)','rgba(3,179,195,0.18)'];
+    for (let i = 0; i < 10; i++) {
+      const el = document.createElement('div');
+      el.className = 'spd';
+      el.style.cssText = `top:${Math.random()*100}%;width:${60+Math.random()*180}px;background:linear-gradient(90deg,transparent,${cols[i%6]},transparent);animation-duration:${2.5+Math.random()*3.5}s;animation-delay:${Math.random()*5}s;`;
+      c.appendChild(el);
+    }
+  })();
+
+  // Clock
+  function tick() {
+    const el = document.getElementById('nt-clock');
+    if (!el) return;
+    const now = new Date(), pad = n => String(n).padStart(2,'0');
+    const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+    el.textContent = `${days[now.getDay()]}  ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  }
+  tick();
+  setInterval(tick, 1000);
+
+  // Navigate via parent browser
+  function nav(url) {
+    try {
+      window.parent.tabNavigate(window.parent.activeTabId, url);
+    } catch(e) {
+      window.top.location.href = url;
+    }
+  }
+
+  // Search
+  document.getElementById('nt-search').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const val = e.target.value.trim();
+      if (val) nav(val);
+    }
+  });
+</script>
+</body>
+</html>

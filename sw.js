@@ -5,7 +5,7 @@ importScripts('/hyperspeed/hyperspeed.bundle.js');
 importScripts('/hyperspeed/hyperspeed.config.js');
 
 const WORKER_URL = 'https://lumatest.craftedgamz.workers.dev';
-const WISP_URL   = 'wss://wisp.mercurywork.shop/';
+const WISP_URL   = 'wss://public-steffane-crafted-gamz-c6318a33.koyeb.app/';
 
 console.log(`[SW] version ${SW_VERSION} loading`);
 

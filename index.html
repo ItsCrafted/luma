@@ -1290,7 +1290,7 @@ async function nav(id,url,push=true){
   const rawInput=url.trim();
   const isSearchQuery=!rawInput.includes('://')&&!rawInput.startsWith('/')&&!isUrl(rawInput);
 
-  if(!url.includes('://')&&!url.startsWith('/'))url=isUrl(url)?(url.startsWith('http')?url:'https://'+url):'https://www.bing.com/search?q='+encodeURIComponent(url);
+  if(!url.includes('://')&&!url.startsWith('/'))url=isUrl(url)?(url.startsWith('http')?url:'https://'+url):'https://hs-search.pages.dev/?q='+encodeURIComponent(url);
   const tab=tabs[id];
   if(push){tab.hist=tab.hist.slice(0,tab.hi+1);tab.hist.push(url);tab.hi=tab.hist.length-1;}
   tab.url=url;
@@ -1428,11 +1428,20 @@ function buildNT(){
   const sites=[['fa-brands fa-wikipedia-w','wikipedia.org','Wiki'],['fa-brands fa-reddit','reddit.com','Reddit'],['fa-brands fa-x-twitter','x.com','X'],['fa-brands fa-github','github.com','GitHub'],['fa-solid fa-newspaper','news.ycombinator.com','HN'],['fa-brands fa-spotify','open.spotify.com','Spotify']];
   return`<div class="newtab"><div class="nt-logo"><div class="nt-emblem"><img src="/favicon.png" alt="Hyperspeed"/></div><div class="nt-word"><span class="h">HYPER</span><span class="s">SPEED</span></div><div class="nt-sub">private &nbsp;·&nbsp; fast &nbsp;·&nbsp; unrestricted</div></div><div class="nt-clock" id="nt-clock"></div><div class="nt-sw"><input class="nt-search" id="nt-srch" placeholder="search or enter a url…" spellcheck="false" autocomplete="off"/><div class="nt-sicon"><i class="fa-solid fa-magnifying-glass"></i></div><div class="nt-sugs" id="nt-sugs"></div></div><div class="nt-tiles"><div class="nt-tile pk" onclick="nav(activeTabId,'hyperspeed://games')"><div class="tile-ico"><i class="fa-solid fa-gamepad"></i></div><div class="tile-name">games</div><div class="tile-desc">Play unblocked</div></div><div class="nt-tile cy" onclick="nav(activeTabId,'hyperspeed://movies')"><div class="tile-ico"><i class="fa-solid fa-film"></i></div><div class="tile-name">movies</div><div class="tile-desc">Stream free</div></div><div class="nt-tile pk" onclick="nav(activeTabId,'hyperspeed://ai')"><div class="tile-ico"><i class="fa-solid fa-robot"></i></div><div class="tile-name">ai</div><div class="tile-desc">Ask anything</div></div><div class="nt-tile cy" onclick="nav(activeTabId,'hyperspeed://settings')"><div class="tile-ico"><i class="fa-solid fa-gear"></i></div><div class="tile-name">settings</div><div class="tile-desc">Configure</div></div></div><div class="nt-div"></div><div class="nt-sites">${sites.map(([ic,url,label])=>`<div class="nt-site" onclick="nav(activeTabId,'https://${url}')"><div class="nt-sico"><i class="${ic}"></i></div><div class="nt-slbl">${label}</div></div>`).join('')}</div></div>`;
 }
-const SUGS=[{icon:'fa-solid fa-gamepad',label:'hyperspeed://games',hint:'Games'},{icon:'fa-solid fa-robot',label:'hyperspeed://ai',hint:'AI'},{icon:'fa-brands fa-google',label:'google.com',hint:'Google'},{icon:'fa-brands fa-youtube',label:'youtube.com',hint:'YouTube'},{icon:'fa-brands fa-github',label:'github.com',hint:'GitHub'}];
+const SUGS=[{icon:'fa-solid fa-gamepad',label:'hyperspeed://games',hint:'Games'},{icon:'fa-solid fa-robot',label:'hyperspeed://ai',hint:'AI'},{icon:'fa-solid fa-bolt',label:'https://hs-search.pages.dev',hint:'HS Search'},{icon:'fa-brands fa-youtube',label:'youtube.com',hint:'YouTube'},{icon:'fa-brands fa-github',label:'github.com',hint:'GitHub'}];
 function setupNT(view){
   const s=view.querySelector('#nt-srch'),sg=view.querySelector('#nt-sugs');
   if(s){
-    s.addEventListener('keydown',e=>{if(e.key==='Enter'){sg.classList.remove('open');nav(activeTabId,e.target.value.trim());}});
+    s.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){
+        sg.classList.remove('open');
+        const v=e.target.value.trim();
+        if(!v)return;
+        // If it's a URL go direct, otherwise send to hs-search
+        const dest=isUrl(v)?(v.startsWith('http')?v:'https://'+v):'https://hs-search.pages.dev/?q='+encodeURIComponent(v);
+        nav(activeTabId,dest);
+      }
+    });
     s.addEventListener('input',()=>{const v=s.value.trim().toLowerCase();if(!v){sg.classList.remove('open');return;}const m=SUGS.filter(x=>x.label.includes(v)||x.hint.toLowerCase().includes(v));if(!m.length){sg.classList.remove('open');return;}sg.innerHTML=m.map(x=>`<div class="nt-si" onclick="nav(activeTabId,'${x.label}')"><i class="${x.icon}"></i><span>${x.label}</span><span style="margin-left:auto;font-size:8px;color:rgba(200,190,230,0.3);font-family:var(--mono)">${x.hint}</span></div>`).join('');sg.classList.add('open');});
     s.addEventListener('blur',()=>setTimeout(()=>sg.classList.remove('open'),150));
   }
